@@ -1,21 +1,22 @@
-import sys
 import math
+import sys
 import pygame
-from scene_manager import BaseScene
-from save_manager import save_manager
-from assets_loader import assets
-from settings import (
-    INTERNAL_WIDTH, INTERNAL_HEIGHT,
-    COLOR_BG_SKY, COLOR_WARUNG_WALL, COLOR_GEROBAK_WOOD, COLOR_GEROBAK_DARK,
-    COLOR_GOLD
-)
-from ui import VBox, Button
+
+from config import INTERNAL_HEIGHT, INTERNAL_WIDTH
+from core import BaseScene, assets, save_manager
+from items.registry import items_registry
+from ui import Button, VBox
+
+COLOR_BG_CYAN = (75, 205, 240)
+COLOR_GOLD = (255, 205, 45)
+
 
 class TitleScene(BaseScene):
     def __init__(self):
         super().__init__()
         self.time = 0.0
         self.menu_layout = None
+        self.cached_bg: pygame.Surface | None = None
         self.rebuild_layout()
 
     def on_enter(self):
@@ -23,47 +24,78 @@ class TitleScene(BaseScene):
 
     def rebuild_layout(self):
         has_save = save_manager.has_save()
-        btn_w = 90
-        btn_h = 16
+        btn_w = 280
+        btn_h = 64
+        btn_font = 28
 
         children = []
         if has_save:
-            children.append(Button("LANJUTKAN", width=btn_w, height=btn_h, on_click=self.continue_game))
+            children.append(
+                Button(
+                    "CONTINUE",
+                    width=btn_w,
+                    height=btn_h,
+                    font_size=btn_font,
+                    on_click=self.continue_game,
+                )
+            )
 
         children.extend([
-            Button("GAME BARU", width=btn_w, height=btn_h, on_click=self.new_game),
-            Button("PENGATURAN", width=btn_w, height=btn_h, on_click=self.open_settings),
-            Button("KELUAR", width=btn_w, height=btn_h, on_click=self.quit_app),
+            Button(
+                "NEW GAME",
+                width=btn_w,
+                height=btn_h,
+                font_size=btn_font,
+                on_click=self.new_game,
+            ),
+            Button(
+                "SETTINGS",
+                width=btn_w,
+                height=btn_h,
+                font_size=btn_font,
+                on_click=self.open_settings,
+            ),
+            Button(
+                "EXIT GAME",
+                width=btn_w,
+                height=btn_h,
+                font_size=btn_font,
+                on_click=self.quit_app,
+            ),
         ])
 
-        start_y = 86 if has_save else 96
+        start_y = 520 if has_save else 560
         self.menu_layout = VBox(
             x=INTERNAL_WIDTH // 2 - btn_w // 2,
             y=start_y,
-            gap=3,
+            gap=16,
             align="center",
-            children=children
+            children=children,
         )
 
     def continue_game(self):
         from scenes.game_scene import GameScene
+
         save_data = save_manager.load_game()
         self.manager.change_scene(GameScene(save_data=save_data))
 
     def new_game(self):
         from scenes.game_scene import GameScene
+
         self.manager.change_scene(GameScene(save_data=None))
 
     def open_settings(self):
         from scenes.settings_scene import SettingsScene
+
         self.manager.push_scene(SettingsScene())
 
     def quit_app(self):
         pygame.quit()
         sys.exit()
 
-    def handle_event(self, event: pygame.event.Event, mouse_canvas_pos: tuple[int, int]):
-        # Mapped Key Actions
+    def handle_event(
+        self, event: pygame.event.Event, mouse_canvas_pos: tuple[int, int]
+    ):
         key_actions = {
             pygame.K_ESCAPE: self.quit_app,
         }
@@ -79,61 +111,101 @@ class TitleScene(BaseScene):
         self.time += dt
 
     def draw(self, canvas: pygame.Surface):
-        # Background
-        canvas.fill(COLOR_BG_SKY)
-        pygame.draw.rect(canvas, COLOR_WARUNG_WALL, (0, 36, INTERNAL_WIDTH, 144))
-        
-        # Gerobak wood borders
-        pygame.draw.rect(canvas, COLOR_GEROBAK_DARK, (0, 34, INTERNAL_WIDTH, 4))
-        pygame.draw.rect(canvas, COLOR_GEROBAK_WOOD, (30, 34, 6, 146))
-        pygame.draw.rect(canvas, COLOR_GEROBAK_WOOD, (INTERNAL_WIDTH - 36, 34, 6, 146))
+        # 1. Background image (assets/sprites/game/background.jpg)
+        bg_spr = assets.get_sprite("background")
+        if bg_spr:
+            if not hasattr(self, "cached_main_bg") or self.cached_main_bg is None:
+                bw, bh = bg_spr.get_size()
+                scale = max(INTERNAL_WIDTH / bw, INTERNAL_HEIGHT / bh)
+                rw, rh = int(bw * scale), int(bh * scale)
+                self.cached_main_bg = pygame.transform.smoothscale(bg_spr, (rw, rh))
+            canvas.blit(
+                self.cached_main_bg,
+                ((INTERNAL_WIDTH - self.cached_main_bg.get_width()) // 2, 0),
+            )
+        else:
+            canvas.fill(COLOR_BG_CYAN)
 
-        # Title Banner with bounce
-        bounce_y = int(math.sin(self.time * 2.5) * 2)
-        title_y = 10 + bounce_y
+        gerobak_spr = assets.get_sprite("gerobak") or assets.get_sprite("main")
+        if gerobak_spr:
+            if self.cached_bg is None:
+                gw, gh = gerobak_spr.get_size()
+                scale = max(INTERNAL_WIDTH / gw, INTERNAL_HEIGHT / gh)
+                rw, rh = int(gw * scale), int(gh * scale)
+                self.cached_bg = pygame.transform.smoothscale(gerobak_spr, (rw, rh))
+            canvas.blit(self.cached_bg, ((INTERNAL_WIDTH - self.cached_bg.get_width()) // 2, 0))
+
+            # Darkening vignette for main menu
+            dim_surf = pygame.Surface((INTERNAL_WIDTH, INTERNAL_HEIGHT), pygame.SRCALPHA)
+            dim_surf.fill((0, 0, 0, 80))
+            canvas.blit(dim_surf, (0, 0))
+
+        # Title with bounce
+        bounce_y = int(math.sin(self.time * 2.5) * 8)
+        title_y = 60 + bounce_y
 
         title_surf = assets.render_text_with_shadow(
-            "BAKSO BULAT BOLA PING PONG",
+            "SO BAKSO",
+            size=64,
             color=COLOR_GOLD,
-            shadow_color=(30, 20, 10),
-            offset=(1, 1),
-            scale=1
+            shadow_color=(40, 25, 10),
+            offset=(3, 4),
         )
-        canvas.blit(title_surf, (INTERNAL_WIDTH // 2 - title_surf.get_width() // 2, title_y))
+        canvas.blit(
+            title_surf,
+            (INTERNAL_WIDTH // 2 - title_surf.get_width() // 2, title_y),
+        )
 
-        sub_surf = assets.render_text("Simulasi Gerobak Bakso Kaki Lima", color=(65, 45, 30))
-        canvas.blit(sub_surf, (INTERNAL_WIDTH // 2 - sub_surf.get_width() // 2, 22))
+        sub_surf = assets.render_text_with_shadow(
+            "Bakso Street Stall Simulation",
+            size=32,
+            color=(255, 240, 220),
+            shadow_color=(30, 20, 10),
+            offset=(2, 2),
+        )
+        canvas.blit(
+            sub_surf, (INTERNAL_WIDTH // 2 - sub_surf.get_width() // 2, 140)
+        )
 
-        # Decorative Bowl & Meatballs in center with sprite-shaped shadows
-        bowl_spr = assets.get_sprite("mangkok")
-        bowl_shadow = assets.get_shadow_sprite("mangkok", alpha=70)
-        bakso_spr = assets.get_sprite("bakso")
-        bakso_shadow = assets.get_shadow_sprite("bakso", alpha=60)
-        urat_spr = assets.get_sprite("bakso_urat")
-        urat_shadow = assets.get_shadow_sprite("bakso_urat", alpha=60)
+        # Centerpiece Decorative 3-Layer Bowl
+        bowl_back = assets.get_sprite("mangkok-back")
+        bowl_front = assets.get_sprite("mangkok-front")
+        bowl_shadow = assets.get_shadow_sprite("mangkok", alpha=80)
 
-        bowl_x = INTERNAL_WIDTH // 2 - (bowl_spr.get_width() // 2 if bowl_spr else 12)
-        bowl_y = 48
-        if bowl_spr:
-            if bowl_shadow:
-                canvas.blit(bowl_shadow, (bowl_x + 1, bowl_y + 2))
-            canvas.blit(bowl_spr, (bowl_x, bowl_y))
-            if bakso_spr:
-                if bakso_shadow:
-                    canvas.blit(bakso_shadow, (bowl_x + 6, bowl_y + 4))
-                    canvas.blit(bakso_shadow, (bowl_x + 14, bowl_y + 5))
-                canvas.blit(bakso_spr, (bowl_x + 5, bowl_y + 3))
-                canvas.blit(bakso_spr, (bowl_x + 13, bowl_y + 4))
-            if urat_spr:
-                if urat_shadow:
-                    canvas.blit(urat_shadow, (bowl_x + 9, bowl_y + 3))
-                canvas.blit(urat_spr, (bowl_x + 8, bowl_y + 2))
+        bw = (bowl_back or bowl_front).get_width() if (bowl_back or bowl_front) else 400
+        bowl_x = INTERNAL_WIDTH // 2 - bw // 2
+        bowl_y = 200
 
-        # Draw Auto-Layout Menu
-        mouse_pos = self.manager.app.window_to_canvas_pos(pygame.mouse.get_pos())
+        if bowl_shadow:
+            canvas.blit(bowl_shadow, (bowl_x + 6, bowl_y + 12))
+
+        if bowl_back:
+            canvas.blit(bowl_back, (bowl_x, bowl_y))
+
+        # Ingredients inside bowl
+        mie_def = items_registry.get("mi_kuning")
+        bihun_def = items_registry.get("mi_bihun")
+        halus_def = items_registry.get("bakso_halus")
+        gorengan_def = items_registry.get("gorengan_panjang")
+
+        if mie_def and mie_def.sprite:
+            canvas.blit(mie_def.sprite, (bowl_x + 60, bowl_y + 40))
+        if bihun_def and bihun_def.sprite:
+            canvas.blit(bihun_def.sprite, (bowl_x + 130, bowl_y + 45))
+        if gorengan_def and gorengan_def.sprite:
+            canvas.blit(gorengan_def.sprite, (bowl_x + 200, bowl_y + 30))
+        if halus_def and halus_def.sprite:
+            canvas.blit(halus_def.sprite, (bowl_x + 90, bowl_y + 70))
+            canvas.blit(halus_def.sprite, (bowl_x + 170, bowl_y + 65))
+
+        if bowl_front:
+            canvas.blit(bowl_front, (bowl_x, bowl_y))
+
+        mouse_pos = (
+            self.manager.app.window_to_canvas_pos(pygame.mouse.get_pos())
+            if (self.manager and hasattr(self.manager, "app") and self.manager.app)
+            else (0, 0)
+        )
         if self.menu_layout:
             self.menu_layout.draw(canvas, mouse_pos)
 
-        # Version tag
-        ver_surf = assets.render_text("v0.2 - pygame-ce", color=(130, 110, 90))
-        canvas.blit(ver_surf, (INTERNAL_WIDTH - ver_surf.get_width() - 4, INTERNAL_HEIGHT - 12))
