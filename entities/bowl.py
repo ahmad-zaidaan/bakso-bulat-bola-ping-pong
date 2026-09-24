@@ -280,6 +280,12 @@ class Bowl:
                     else None
                 )
 
+                # Slightly transparent liquid overlay for sauces
+                if item_type in ["kecap", "saos_sambal", "saos_tomat", "saos-sambal", "saos-tomat"]:
+                    spr_to_draw.set_alpha(205)
+                    if shadow_to_draw:
+                        shadow_to_draw.set_alpha(60)
+
                 draw_x = self.x + int(item["offset_x"] * self.scale)
                 draw_y = self.y + int(item["offset_y"] * self.scale)
 
