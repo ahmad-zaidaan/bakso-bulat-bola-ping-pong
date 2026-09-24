@@ -2,13 +2,17 @@ import random
 import pygame
 
 from config import (
-    DAY_LENGTH_SECONDS,
+    DAY_END_HOUR,
+    DAY_START_HOUR,
     INITIAL_MONEY,
     INITIAL_REPUTATION,
     INTERNAL_HEIGHT,
     INTERNAL_WIDTH,
+    MAX_CUSTOMERS_PER_DAY,
+    MIN_CUSTOMERS_PER_DAY,
     REPUTATION_GAIN,
     REPUTATION_LOSS,
+    get_unlocked_items,
 )
 from core import BaseScene, assets, save_manager
 from entities import Bowl, Customer, DraggedItem, IngredientTray, TrashCan
@@ -172,8 +176,12 @@ class GameScene(BaseScene):
             self.persist_save()
 
         self.state = "PLAYING"
-        self.day_timer = DAY_LENGTH_SECONDS
         self.is_time_paused = False  # Debug pause time toggle (F4)
+
+        self.target_customers = random.randint(
+            MIN_CUSTOMERS_PER_DAY, MAX_CUSTOMERS_PER_DAY
+        )
+        self.customers_spawned = 1
 
         self.day_earnings = 0
         self.customers_served = 0
@@ -213,7 +221,10 @@ class GameScene(BaseScene):
             )
             self.trays.append(tray)
 
-        self.current_customer: Customer | None = Customer(x=CUSTOMER_POS[0], y=CUSTOMER_POS[1])
+        self.update_tray_unlocks()
+        self.current_customer: Customer | None = Customer(
+            x=CUSTOMER_POS[0], y=CUSTOMER_POS[1], day=self.day
+        )
         self.customer_spawn_timer = 0.0
 
         # UI & Buttons
@@ -237,6 +248,14 @@ class GameScene(BaseScene):
             pygame.K_BACKSPACE: self.bowl.clear,
             pygame.K_F4: self.toggle_debug_pause_time,
         }
+
+    def update_tray_unlocks(self):
+        unlocked = get_unlocked_items(self.day)
+        for tray in self.trays:
+            if tray.item_id in ["kuah", "kentongan"]:
+                tray.visible = True
+            else:
+                tray.visible = tray.item_id in unlocked
 
     def toggle_debug_pause_time(self):
         self.is_time_paused = not self.is_time_paused
@@ -416,51 +435,60 @@ class GameScene(BaseScene):
         ]
 
         if self.state == "PLAYING":
-            # If debug pause time is enabled, freeze clock, customer timers & spawning
-            if not self.is_time_paused:
-                self.day_timer -= dt
-                if self.day_timer <= 0:
-                    self.day_timer = 0
-                    self.state = "DAY_SUMMARY"
-                    self.persist_save()
-                    return
-
-                if self.current_customer:
+            if self.current_customer:
+                if not self.is_time_paused:
                     self.current_customer.update(dt)
-                    if (
-                        self.current_customer.state == "angry"
-                        and self.current_customer.patience == 0
-                        and self.current_customer.feedback_timer >= 1.95
-                    ):
-                        self.reputation = max(0, self.reputation - REPUTATION_LOSS)
-                        self.customers_failed += 1
-                        self.add_floating_text(
-                            "Order canceled",
-                            self.current_customer.x,
-                            self.current_customer.y - 40,
-                            (255, 80, 80),
-                        )
-                        if self.reputation <= 0:
-                            self.state = "GAME_OVER"
-                            save_manager.delete_save()
-                            return
+                if (
+                    self.current_customer.state == "angry"
+                    and self.current_customer.patience == 0
+                    and self.current_customer.feedback_timer >= 1.95
+                ):
+                    self.reputation = max(0, self.reputation - REPUTATION_LOSS)
+                    self.customers_failed += 1
+                    self.add_floating_text(
+                        "Order canceled",
+                        self.current_customer.x,
+                        self.current_customer.y - 40,
+                        (255, 80, 80),
+                    )
+                    if self.reputation <= 0:
+                        self.state = "GAME_OVER"
+                        save_manager.delete_save()
+                        return
 
-                    if self.current_customer.state == "done":
-                        self.current_customer = None
+                if self.current_customer.state == "done":
+                    self.current_customer = None
+                    if self.customers_spawned < self.target_customers:
                         self.customer_spawn_timer = CUSTOMER_SPAWN_DELAY
-                else:
-                    self.customer_spawn_timer -= dt
+                    else:
+                        # All customers for the day have finished!
+                        self.state = "DAY_SUMMARY"
+                        self.persist_save()
+                        return
+            else:
+                if self.customers_spawned < self.target_customers:
+                    if not self.is_time_paused:
+                        self.customer_spawn_timer -= dt
                     if self.customer_spawn_timer <= 0:
-                        self.current_customer = Customer(x=CUSTOMER_POS[0], y=CUSTOMER_POS[1])
+                        self.current_customer = Customer(
+                            x=CUSTOMER_POS[0], y=CUSTOMER_POS[1], day=self.day
+                        )
+                        self.customers_spawned += 1
 
     def start_next_day(self):
         self.day += 1
-        self.day_timer = DAY_LENGTH_SECONDS
         self.day_earnings = 0
         self.customers_served = 0
         self.customers_failed = 0
         self.floating_texts.clear()
-        self.current_customer = Customer(x=CUSTOMER_POS[0], y=CUSTOMER_POS[1])
+        self.update_tray_unlocks()
+        self.target_customers = random.randint(
+            MIN_CUSTOMERS_PER_DAY, MAX_CUSTOMERS_PER_DAY
+        )
+        self.customers_spawned = 1
+        self.current_customer = Customer(
+            x=CUSTOMER_POS[0], y=CUSTOMER_POS[1], day=self.day
+        )
         self.bowl.clear()
         self.bowl.reset_position()
         if self.dragged_item and self.dragged_item.source_tray:
@@ -473,7 +501,25 @@ class GameScene(BaseScene):
         self.day = 1
         self.money = INITIAL_MONEY
         self.reputation = INITIAL_REPUTATION
-        self.start_next_day()
+        self.day_earnings = 0
+        self.customers_served = 0
+        self.customers_failed = 0
+        self.floating_texts.clear()
+        self.update_tray_unlocks()
+        self.target_customers = random.randint(
+            MIN_CUSTOMERS_PER_DAY, MAX_CUSTOMERS_PER_DAY
+        )
+        self.customers_spawned = 1
+        self.current_customer = Customer(
+            x=CUSTOMER_POS[0], y=CUSTOMER_POS[1], day=self.day
+        )
+        self.bowl.clear()
+        self.bowl.reset_position()
+        if self.dragged_item and self.dragged_item.source_tray:
+            self.dragged_item.source_tray.is_held = False
+        self.dragged_item = None
+        self.persist_save()
+        self.state = "PLAYING"
 
     def draw_environment(self, canvas: pygame.Surface):
         # 1. Background image (assets/sprites/game/background.jpg)
@@ -538,15 +584,35 @@ class GameScene(BaseScene):
         pygame.draw.line(hud_bar, COLOR_GOLD, (0, HUD_HEIGHT - 1), (INTERNAL_WIDTH, HUD_HEIGHT - 1), 3)
         canvas.blit(hud_bar, (0, 0))
 
-        # Clock calculation (10:00 to 20:00)
-        elapsed_seconds = DAY_LENGTH_SECONDS - self.day_timer
-        elapsed_minutes = int(elapsed_seconds)
-        current_total_minutes = 10 * 60 + elapsed_minutes
-        hour = min(20, current_total_minutes // 60)
-        minute = current_total_minutes % 60 if hour < 20 else 0
+        # Decorative Clock progression from DAY_START_HOUR to DAY_END_HOUR
+        completed = self.customers_served + self.customers_failed
+        active_prog = 0.0
+        if self.current_customer and self.current_customer.state == "waiting":
+            p_ratio = max(
+                0.0,
+                min(
+                    1.0,
+                    self.current_customer.patience
+                    / max(0.1, self.current_customer.patience_max),
+                ),
+            )
+            active_prog = (1.0 - p_ratio) * 0.9
 
-        # Day & Time
-        hud_left = f"DAY {self.day}  |  TIME: {hour:02d}:{minute:02d}"
+        prog = min(
+            1.0,
+            (completed + active_prog) / max(1, self.target_customers),
+        )
+        total_span_minutes = (DAY_END_HOUR - DAY_START_HOUR) * 60
+        current_total_minutes = int(DAY_START_HOUR * 60 + prog * total_span_minutes)
+        hour = min(DAY_END_HOUR, current_total_minutes // 60)
+        minute = current_total_minutes % 60 if hour < DAY_END_HOUR else 0
+
+        # Day, Time & Customer counter
+        cust_curr = min(
+            self.target_customers,
+            completed + (1 if self.current_customer else 0),
+        )
+        hud_left = f"DAY {self.day}  |  TIME: {hour:02d}:{minute:02d}  |  CUSTOMER: {cust_curr}/{self.target_customers}"
         surf_left = assets.render_text_with_shadow(
             hud_left, size=30, color=COLOR_WHITE, shadow_color=(20, 15, 10), offset=(2, 2)
         )

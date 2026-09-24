@@ -79,6 +79,7 @@ class IngredientTray:
         height: int | None = None,
         label: str | None = None,
         on_click: Callable[[], None] | None = None,
+        visible: bool = True,
     ):
         self.x = x
         self.y = y
@@ -88,6 +89,7 @@ class IngredientTray:
         )
         self.is_pickable = is_pickable
         self.hide_on_drag = hide_on_drag
+        self.visible = visible
         self.is_held = False
         self.scale = scale
         self.on_click = on_click
@@ -124,6 +126,8 @@ class IngredientTray:
         )
 
     def handle_mouse_down(self, pos: tuple[int, int]) -> DraggedItem | None:
+        if not self.visible:
+            return None
         if self.rect.inflate(16, 16).collidepoint(pos):
             if self.on_click:
                 self.on_click()
@@ -142,7 +146,7 @@ class IngredientTray:
         return None
 
     def update_hover(self, pos: tuple[int, int]):
-        if self.is_held:
+        if not self.visible or self.is_held:
             self.is_hovered = False
         else:
             self.is_hovered = self.rect.inflate(16, 16).collidepoint(pos)
@@ -162,7 +166,7 @@ class IngredientTray:
         self.rect.topleft = (self.x, self.y)
 
     def draw(self, surface: pygame.Surface):
-        if self.is_held:
+        if not self.visible or self.is_held:
             return
 
         spr = self.sprite

@@ -38,12 +38,14 @@ class Customer:
         x: int = CUSTOMER_POS[0],
         y: int = CUSTOMER_POS[1],
         scale: float = CUSTOMER_SCALE,
+        day: int = 1,
     ):
         self.x = x
         self.y = y
         self.scale = scale
+        self.day = day
         self.name = random.choice(CUSTOMER_NAMES)
-        self.order = Order.generate_random()
+        self.order = Order.generate_random(day=day)
         self.patience_max = DEFAULT_PATIENCE_TIME
         self.patience = DEFAULT_PATIENCE_TIME
         self.state = "waiting"  # "waiting", "happy", "angry", "done"

@@ -1,7 +1,7 @@
 import random
 import pygame
 
-from config import BASE_BOWL_PRICE
+from config import BASE_BOWL_PRICE, get_unlocked_items
 from core.assets import assets
 from items.registry import items_registry
 
@@ -18,20 +18,31 @@ class Order:
         self.total_price = self.calculate_price()
 
     @classmethod
-    def generate_random(cls) -> "Order":
+    def generate_random(cls, day: int = 1) -> "Order":
         items = {}
+        unlocked = get_unlocked_items(day)
 
         # 1. Noodles: None, Mie Kuning, Bihun, or Mixed (Campur)
-        noodle_choice = random.choice([
-            "none",
-            "mi_kuning",
-            "mi_kuning",
-            "mi_bihun",
-            "mi_bihun",
-            "both",
-            "mi_kuning_2",
-            "mi_bihun_2",
-        ])
+        has_kuning = "mi_kuning" in unlocked
+        has_bihun = "mi_bihun" in unlocked
+
+        noodle_options = ["none"]
+        if has_kuning and has_bihun:
+            noodle_options.extend([
+                "mi_kuning",
+                "mi_kuning",
+                "mi_bihun",
+                "mi_bihun",
+                "both",
+                "mi_kuning_2",
+                "mi_bihun_2",
+            ])
+        elif has_kuning:
+            noodle_options.extend(["mi_kuning", "mi_kuning", "mi_kuning_2"])
+        elif has_bihun:
+            noodle_options.extend(["mi_bihun", "mi_bihun", "mi_bihun_2"])
+
+        noodle_choice = random.choice(noodle_options)
         if noodle_choice == "mi_kuning":
             items["mi_kuning"] = 1
         elif noodle_choice == "mi_bihun":
@@ -45,29 +56,37 @@ class Order:
             items["mi_bihun"] = 2
 
         # 2. Main Meatball: Bakso Halus (1 to 4)
-        items["bakso_halus"] = random.choice([1, 2, 2, 3, 3, 4])
+        if "bakso_halus" in unlocked:
+            items["bakso_halus"] = random.choice([1, 2, 2, 3, 3, 4])
 
         # 3. Tahu (50% chance: 1 or 2)
-        if random.random() < 0.50:
+        if "tahu" in unlocked and random.random() < 0.50:
             items["tahu"] = random.choice([1, 1, 2])
 
         # 4. Gorengan (50% chance: 1 or 2)
-        if random.random() < 0.50:
+        if "gorengan_panjang" in unlocked and random.random() < 0.50:
             items["gorengan_panjang"] = random.choice([1, 1, 2])
 
         # 5. Garnish Sprinkles (Daun Bawang & Bawang Goreng)
-        if random.random() < 0.65:
+        if "daun_bawang" in unlocked and random.random() < 0.65:
             items["daun_bawang"] = 1
-        if random.random() < 0.65:
+        if "bawang_goreng" in unlocked and random.random() < 0.65:
             items["bawang_goreng"] = 1
 
         # 6. Sauces / Condiments (Kecap, Saos Sambal, Saos Tomat)
-        if random.random() < 0.45:
+        if "kecap" in unlocked and random.random() < 0.45:
             items["kecap"] = 1
-        if random.random() < 0.45:
+        if "saos_sambal" in unlocked and random.random() < 0.45:
             items["saos_sambal"] = 1
-        if random.random() < 0.35:
+        if "saos_tomat" in unlocked and random.random() < 0.35:
             items["saos_tomat"] = 1
+
+        # Fallback safeguard to ensure order is not empty
+        if not items:
+            if "bakso_halus" in unlocked:
+                items["bakso_halus"] = 1
+            elif unlocked:
+                items[next(iter(unlocked))] = 1
 
         return cls(items)
 

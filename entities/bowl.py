@@ -266,9 +266,9 @@ class Bowl:
             if spr:
                 # Custom ingredient scale modifiers inside the bowl
                 if item_type in ["kecap", "saos_sambal", "saos_tomat", "saos-sambal", "saos-tomat"]:
-                    ing_scale = self.scale * 0.25  # 75% smaller overlay
+                    ing_scale = self.scale * 0.50
                 elif item_type in ["mi_kuning", "mi-kuning", "mi_bihun", "mi-bihun"]:
-                    ing_scale = self.scale * 0.75  # 25% smaller noodles
+                    ing_scale = self.scale * 0.85
                 else:
                     ing_scale = self.scale
 
