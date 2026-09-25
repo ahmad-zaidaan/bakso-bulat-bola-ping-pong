@@ -11,11 +11,8 @@ from main import (
     save_manager,
 )
 
-# ==============================================================================
-# GAME BALANCE & OPERATING CONSTANTS
-# ==============================================================================
-DAY_START_HOUR = 10  # 10:00 AM
-DAY_END_HOUR = 20    # 08:00 PM
+DAY_START_HOUR = 10
+DAY_END_HOUR = 20
 MIN_CUSTOMERS_PER_DAY = 5
 MAX_CUSTOMERS_PER_DAY = 7
 
@@ -27,7 +24,6 @@ BASE_BOWL_PRICE = 2000
 REPUTATION_GAIN = 10
 REPUTATION_LOSS = 20
 
-# Environment / Positions
 CUSTOMER_POS = (650, 315)
 BOWL_HOME_POS = (780, 710)
 TRASH_CAN_POS = (100, 710)
@@ -39,9 +35,6 @@ PAUSE_BTN_POS = (1830, 8)
 PAUSE_BTN_SIZE = (76, 52)
 COLOR_BG_CYAN = (75, 205, 240)
 
-# ==============================================================================
-# DAY PROGRESSION UNLOCK SYSTEM
-# ==============================================================================
 UNLOCKED_ITEMS_BY_DAY = {
     1: {"mi_kuning", "bakso_halus", "kecap"},
     2: {"mi_kuning", "bakso_halus", "kecap", "mi_bihun", "gorengan_panjang"},
@@ -79,9 +72,6 @@ def get_unlocked_items(day: int) -> set[str]:
     return set(UNLOCKED_ITEMS_BY_DAY[max_day])
 
 
-# ==============================================================================
-# INGREDIENTS & ITEMS DEFINITIONS
-# ==============================================================================
 ITEM_DATA = {
     "mi_kuning": {"name": "Mie Kuning", "sprite": "mi-kuning", "price": 1000, "category": "noodle"},
     "mi_bihun": {"name": "Bihun", "sprite": "mi-bihun", "price": 1000, "category": "noodle"},
@@ -126,9 +116,6 @@ def get_item_name(item_id: str) -> str:
     return ITEM_DATA.get(cid, {}).get("name", item_id)
 
 
-# ==============================================================================
-# FOOD STATIONS LAYOUT ON GEROBAK
-# ==============================================================================
 FOOD_STATIONS_LAYOUT = [
     {"id": "bakso_halus", "display_sprite": "bakso-halus-cluster", "x": 1030, "y": 290, "scale": 0.70, "is_pickable": True, "label": "Bakso Halus"},
     {"id": "tahu", "display_sprite": "tahu-cluster", "x": 1350, "y": 320, "scale": 0.70, "is_pickable": True, "label": "Tahu"},
@@ -145,9 +132,6 @@ FOOD_STATIONS_LAYOUT = [
 ]
 
 
-# ==============================================================================
-# ENTITIES: DraggedItem, IngredientTray, TrashCan
-# ==============================================================================
 class DraggedItem:
     def __init__(self, item_id: str, pos: tuple[int, int], source_tray=None, scale: float = 1.0, drag_offset=None):
         self.item_id = item_id
@@ -321,9 +305,6 @@ class TrashCan:
                 surface.blit(scaled_trash, draw_pos)
 
 
-# ==============================================================================
-# BOWL ENTITY (3-Layer Rendering + Sauces Transparency)
-# ==============================================================================
 BOWL_SCALE = 0.80
 BOWL_MEATBALL_OFFSETS = [(90, 75), (210, 70), (150, 110), (80, 120), (220, 125), (150, 50)]
 BOWL_NOODLE_OFFSET = (70, 50)
@@ -443,7 +424,6 @@ class Bowl:
         return counts
 
     def draw(self, surface: pygame.Surface):
-        # 1. Shadow
         if self.is_dragging:
             if self.drag_shadow_sprite:
                 surface.blit(self.drag_shadow_sprite, (self.x + 8, self.y + 16))
@@ -451,19 +431,16 @@ class Bowl:
             if self.shadow_sprite:
                 surface.blit(self.shadow_sprite, (self.x + 4, self.y + 8))
 
-        # 2. Hover Outline
         if self.is_hovered and not self.is_dragging:
             out_spr, pad = assets.get_outlined_sprite("mangkok", outline_color=(255, 255, 255), thickness=4, scale=self.scale)
             if out_spr:
                 surface.blit(out_spr, (self.x - pad, self.y - pad))
 
-        # 3. Mangkok Back
         if self.sprite_back:
             surface.blit(self.sprite_back, (self.x, self.y))
         elif self.sprite:
             surface.blit(self.sprite, (self.x, self.y))
 
-        # 4. Ingredients (Depth sorted)
         def layer_key(it):
             t = it["type"]
             if t in ["daun_bawang", "daun-bawang", "bawang_goreng", "bawang-goreng", "kecap", "saos_sambal", "saos_tomat"]:
@@ -486,7 +463,6 @@ class Bowl:
                 spr_to_draw = pygame.transform.smoothscale(spr, (sw, sh))
                 shadow_to_draw = pygame.transform.smoothscale(shadow_spr, (sw, sh)) if shadow_spr else None
 
-                # Liquid sauce semi-transparency
                 if item_type in ["kecap", "saos_sambal", "saos_tomat", "saos-sambal", "saos-tomat"]:
                     spr_to_draw.set_alpha(205)
                     if shadow_to_draw:
@@ -499,16 +475,12 @@ class Bowl:
                     surface.blit(shadow_to_draw, (draw_x + 4, draw_y + 4))
                 surface.blit(spr_to_draw, (draw_x, draw_y))
 
-        # 5. Mangkok Front
         if self.sprite_front:
             surface.blit(self.sprite_front, (self.x, self.y))
         elif self.sprite:
             surface.blit(self.sprite, (self.x, self.y))
 
 
-# ==============================================================================
-# ORDER & CUSTOMER ENTITIES
-# ==============================================================================
 class Order:
     def __init__(self, items: dict[str, int]):
         self.items = items
@@ -590,7 +562,6 @@ class Order:
         needed_height = max(height, 56 + len(active_items) * 32 + 48)
         ticket_rect = pygame.Rect(x, y, width, needed_height)
 
-        # Shadow & Ticket Box
         shadow_rect = ticket_rect.copy()
         shadow_rect.move_ip(4, 6)
         pygame.draw.rect(surface, (0, 0, 0, 60), shadow_rect, border_radius=10)
@@ -624,7 +595,7 @@ class Order:
         surface.blit(price_surf, (x + width - price_surf.get_width() - 14, y + needed_height - 38))
 
 
-CUSTOMER_NAMES = ["Mas Budi", "Pak Haji", "Mbak Siti", "Bang Ojol", "Bocil SD", "Bu RT", "Kak Maya", "Pak Guru"]
+CUSTOMER_NAMES = ["Wowo Sawit", "Fufufafa", "Tung Tung Tung Sahur", "Mulyono"]
 
 
 class Customer:
@@ -637,7 +608,7 @@ class Customer:
         self.order = Order.generate_random(day=day)
         self.patience_max = DEFAULT_PATIENCE_TIME
         self.patience = DEFAULT_PATIENCE_TIME
-        self.state = "waiting"  # "waiting", "happy", "angry", "done"
+        self.state = "waiting"
         self.feedback_timer = 0.0
 
         raw_spr = assets.get_sprite("customer")
@@ -699,16 +670,13 @@ class Customer:
             if ratio > 0:
                 pygame.draw.rect(surface, bar_color, (bar_x, bar_y, int(bar_w * ratio), bar_h), border_radius=4)
         elif self.state == "happy":
-            fb_surf = assets.render_text_with_shadow("Enak Banget!", size=34, color=(60, 240, 80), shadow_color=(20, 60, 20), offset=(2, 2))
+            fb_surf = assets.render_text_with_shadow("CORRECT", size=34, color=(60, 240, 80), shadow_color=(20, 60, 20), offset=(2, 2))
             surface.blit(fb_surf, (self.x - fb_surf.get_width() // 2, draw_y - 56))
         elif self.state == "angry":
-            fb_surf = assets.render_text_with_shadow("Salah / Kelamaan!", size=34, color=(255, 75, 75), shadow_color=(80, 20, 20), offset=(2, 2))
+            fb_surf = assets.render_text_with_shadow("WRONG", size=34, color=(255, 75, 75), shadow_color=(80, 20, 20), offset=(2, 2))
             surface.blit(fb_surf, (self.x - fb_surf.get_width() // 2, draw_y - 56))
 
 
-# ==============================================================================
-# GAME SCENE
-# ==============================================================================
 class GameScene(BaseScene):
     def __init__(self, save_data: dict = None):
         super().__init__()
@@ -724,21 +692,19 @@ class GameScene(BaseScene):
 
         self.state = "PLAYING"
         self.is_time_paused = False
+        self.elapsed_seconds = 0.0
         self.target_customers = random.randint(MIN_CUSTOMERS_PER_DAY, MAX_CUSTOMERS_PER_DAY)
         self.customers_spawned = 1
         self.day_earnings = 0
         self.customers_served = 0
         self.customers_failed = 0
-        self.floating_texts: list[dict] = []
 
         self.cached_bg = None
         self.cached_gerobak = None
 
-        # Entities
         self.bowl = Bowl(x=BOWL_HOME_POS[0], y=BOWL_HOME_POS[1])
         self.trash_can = TrashCan(x=TRASH_CAN_POS[0], y=TRASH_CAN_POS[1])
 
-        # Food Stations
         self.trays: list[IngredientTray] = []
         for cfg in FOOD_STATIONS_LAYOUT:
             on_click = (lambda: assets.play_sound("bakso.mp3", volume=1.0)) if cfg["id"] == "kentongan" else None
@@ -760,7 +726,6 @@ class GameScene(BaseScene):
         self.customer_spawn_timer = 0.0
         self.dragged_item: DraggedItem | None = None
 
-        # UI Rects
         self.pause_btn_rect = pygame.Rect(PAUSE_BTN_POS[0], PAUSE_BTN_POS[1], PAUSE_BTN_SIZE[0], PAUSE_BTN_SIZE[1])
         self.next_day_btn_rect = pygame.Rect(INTERNAL_WIDTH // 2 - 140, 680, 280, 72)
         self.restart_btn_rect = pygame.Rect(INTERNAL_WIDTH // 2 - 140, 640, 280, 72)
@@ -775,9 +740,6 @@ class GameScene(BaseScene):
                 tray.visible = True
             else:
                 tray.visible = tray.item_id in unlocked
-
-    def add_floating_text(self, text: str, x: int, y: int, color: tuple[int, int, int]):
-        self.floating_texts.append({"text": text, "x": float(x), "y": float(y), "vy": -40.0, "color": color, "lifetime": 1.4, "max_life": 1.4})
 
     def persist_save(self):
         save_manager.save_game({"day": self.day, "money": self.money, "reputation": self.reputation})
@@ -802,11 +764,9 @@ class GameScene(BaseScene):
             self.day_earnings += earned
             self.reputation = min(100, self.reputation + REPUTATION_GAIN)
             self.customers_served += 1
-            self.add_floating_text(f"+Rp {earned:,}", self.current_customer.x, self.current_customer.y - 40, (80, 240, 100))
         else:
             self.reputation = max(0, self.reputation - REPUTATION_LOSS)
             self.customers_failed += 1
-            self.add_floating_text("+Rp 0", self.current_customer.x, self.current_customer.y - 40, (255, 80, 80))
             if self.reputation <= 0:
                 self.state = "GAME_OVER"
                 save_manager.delete_save()
@@ -825,8 +785,6 @@ class GameScene(BaseScene):
                 return
             elif event.key == pygame.K_F4:
                 self.is_time_paused = not self.is_time_paused
-                status = "DIJEDA (PAUSED)" if self.is_time_paused else "BERJALAN (RESUMED)"
-                self.add_floating_text(f"WAKTU {status}", INTERNAL_WIDTH // 2, 120, (255, 230, 80) if self.is_time_paused else (100, 255, 120))
                 return
 
         if self.state == "PLAYING":
@@ -896,19 +854,16 @@ class GameScene(BaseScene):
                     self.restart_game()
 
     def update(self, dt: float):
-        for ft in self.floating_texts:
-            ft["lifetime"] -= dt
-            ft["y"] += ft["vy"] * dt
-        self.floating_texts = [ft for ft in self.floating_texts if ft["lifetime"] > 0]
-
         if self.state == "PLAYING":
+            if not self.is_time_paused:
+                self.elapsed_seconds += dt
+
             if self.current_customer:
                 if not self.is_time_paused:
                     self.current_customer.update(dt)
                 if self.current_customer.state == "angry" and self.current_customer.patience == 0 and self.current_customer.feedback_timer >= 1.95:
                     self.reputation = max(0, self.reputation - REPUTATION_LOSS)
                     self.customers_failed += 1
-                    self.add_floating_text("Order canceled", self.current_customer.x, self.current_customer.y - 40, (255, 80, 80))
                     if self.reputation <= 0:
                         self.state = "GAME_OVER"
                         save_manager.delete_save()
@@ -932,10 +887,10 @@ class GameScene(BaseScene):
 
     def start_next_day(self):
         self.day += 1
+        self.elapsed_seconds = 0.0
         self.day_earnings = 0
         self.customers_served = 0
         self.customers_failed = 0
-        self.floating_texts.clear()
         self.update_tray_unlocks()
         self.target_customers = random.randint(MIN_CUSTOMERS_PER_DAY, MAX_CUSTOMERS_PER_DAY)
         self.customers_spawned = 1
@@ -952,10 +907,10 @@ class GameScene(BaseScene):
         self.day = 1
         self.money = INITIAL_MONEY
         self.reputation = INITIAL_REPUTATION
+        self.elapsed_seconds = 0.0
         self.day_earnings = 0
         self.customers_served = 0
         self.customers_failed = 0
-        self.floating_texts.clear()
         self.update_tray_unlocks()
         self.target_customers = random.randint(MIN_CUSTOMERS_PER_DAY, MAX_CUSTOMERS_PER_DAY)
         self.customers_spawned = 1
@@ -994,44 +949,19 @@ class GameScene(BaseScene):
             gy = (INTERNAL_HEIGHT - self.cached_gerobak.get_height()) // 2
             canvas.blit(self.cached_gerobak, (gx, gy))
 
-    def _draw_reputation_face(self, canvas: pygame.Surface, cx: int, cy: int):
-        if self.reputation >= 80:
-            face_bg, mood = (70, 210, 90), "😄"
-        elif self.reputation >= 60:
-            face_bg, mood = (150, 215, 70), "🙂"
-        elif self.reputation >= 35:
-            face_bg, mood = (245, 195, 60), "😐"
-        elif self.reputation >= 15:
-            face_bg, mood = (245, 130, 50), "🙁"
-        else:
-            face_bg, mood = (240, 70, 70), "😡"
-
-        pygame.draw.circle(canvas, face_bg, (cx, cy), 18)
-        pygame.draw.circle(canvas, (40, 30, 20), (cx, cy), 18, 2)
-        rep_txt = assets.render_text(mood, size=20, color=(30, 20, 10))
-        canvas.blit(rep_txt, (cx - rep_txt.get_width() // 2, cy - rep_txt.get_height() // 2))
-
     def draw_hud(self, canvas: pygame.Surface):
         hud_bar = pygame.Surface((INTERNAL_WIDTH, HUD_HEIGHT), pygame.SRCALPHA)
         hud_bar.fill((35, 25, 20, 220))
         pygame.draw.line(hud_bar, COLOR_GOLD, (0, HUD_HEIGHT - 1), (INTERNAL_WIDTH, HUD_HEIGHT - 1), 3)
         canvas.blit(hud_bar, (0, 0))
 
-        # Decorative Clock progression
-        completed = self.customers_served + self.customers_failed
-        active_prog = 0.0
-        if self.current_customer and self.current_customer.state == "waiting":
-            p_ratio = max(0.0, min(1.0, self.current_customer.patience / max(0.1, self.current_customer.patience_max)))
-            active_prog = (1.0 - p_ratio) * 0.9
+        total_secs = int(10 * 3600 + self.elapsed_seconds)
+        hour = (total_secs // 3600) % 24
+        minute = (total_secs % 3600) // 60
+        second = total_secs % 60
 
-        prog = min(1.0, (completed + active_prog) / max(1, self.target_customers))
-        total_span = (DAY_END_HOUR - DAY_START_HOUR) * 60
-        current_mins = int(DAY_START_HOUR * 60 + prog * total_span)
-        hour = min(DAY_END_HOUR, current_mins // 60)
-        minute = current_mins % 60 if hour < DAY_END_HOUR else 0
-
-        cust_curr = min(self.target_customers, completed + (1 if self.current_customer else 0))
-        hud_left = f"DAY {self.day}  |  TIME: {hour:02d}:{minute:02d}  |  CUSTOMER: {cust_curr}/{self.target_customers}"
+        cust_curr = min(self.target_customers, self.customers_spawned)
+        hud_left = f"DAY {self.day}  |  TIME: {hour:02d}:{minute:02d}:{second:02d}  |  CUSTOMER: {cust_curr}/{self.target_customers}"
         surf_left = assets.render_text_with_shadow(hud_left, size=30, color=COLOR_WHITE, shadow_color=(20, 15, 10), offset=(2, 2))
         canvas.blit(surf_left, (32, 18))
 
@@ -1043,12 +973,10 @@ class GameScene(BaseScene):
         surf_money = assets.render_text_with_shadow(money_str, size=30, color=COLOR_GOLD, shadow_color=(40, 25, 10), offset=(2, 2))
         canvas.blit(surf_money, (INTERNAL_WIDTH // 2 - surf_money.get_width() // 2, 17))
 
-        rep_label = assets.render_text("REPUTATION:", size=30, color=(220, 220, 220))
-        rep_cx = INTERNAL_WIDTH - 160
-        canvas.blit(rep_label, (rep_cx - rep_label.get_width() - 32, 20))
-        self._draw_reputation_face(canvas, rep_cx, 34)
+        rep_txt = f"Reputation: {self.reputation}%"
+        surf_rep = assets.render_text_with_shadow(rep_txt, size=30, color=COLOR_WHITE, shadow_color=(20, 15, 10), offset=(2, 2))
+        canvas.blit(surf_rep, (INTERNAL_WIDTH - surf_rep.get_width() - 110, 18))
 
-        # Pause button
         mouse_pos = self.manager.app.window_to_canvas_pos(pygame.mouse.get_pos()) if (self.manager and self.manager.app) else (0, 0)
         is_hover = self.pause_btn_rect.collidepoint(mouse_pos)
         if is_hover and not self.pause_btn_hovered:
@@ -1130,16 +1058,13 @@ class GameScene(BaseScene):
         canvas.blit(btn_txt, (self.restart_btn_rect.centerx - btn_txt.get_width() // 2, self.restart_btn_rect.centery - btn_txt.get_height() // 2))
 
     def draw(self, canvas: pygame.Surface):
-        # 1. Environment & Gerobak
         self.draw_environment(canvas)
 
-        # 2. Customer
         if self.current_customer:
             self.current_customer.draw(canvas)
             if self.current_customer.state == "waiting":
                 self.current_customer.order.draw_ticket(canvas)
 
-        # 3. Trays & Stations
         for tray in self.trays:
             if tray.item_id == "kuah":
                 tray.draw(canvas)
@@ -1148,24 +1073,13 @@ class GameScene(BaseScene):
             if tray.item_id != "kuah":
                 tray.draw(canvas)
 
-        # 4. Bowl
         self.bowl.draw(canvas)
 
-        # 5. Dragged item
         if self.dragged_item:
             self.dragged_item.draw(canvas)
 
-        # 6. Floating texts
-        for ft in self.floating_texts:
-            surf = assets.render_text_with_shadow(ft["text"], size=30, color=ft["color"], shadow_color=(20, 10, 5), offset=(2, 2))
-            alpha = max(0, min(255, int(255 * (ft["lifetime"] / ft["max_life"]))))
-            surf.set_alpha(alpha)
-            canvas.blit(surf, (int(ft["x"]) - surf.get_width() // 2, int(ft["y"])))
-
-        # 7. HUD
         self.draw_hud(canvas)
 
-        # 8. Overlays
         if self.state == "DAY_SUMMARY":
             self.draw_summary_overlay(canvas)
         elif self.state == "GAME_OVER":

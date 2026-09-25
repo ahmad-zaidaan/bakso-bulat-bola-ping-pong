@@ -4,9 +4,6 @@ import os
 import sys
 import pygame
 
-# ==============================================================================
-# CONFIGURATION & CONSTANTS
-# ==============================================================================
 TITLE = "So Bakso"
 INTERNAL_WIDTH = 1920
 INTERNAL_HEIGHT = 1080
@@ -18,9 +15,6 @@ COLOR_WHITE = (255, 255, 255)
 COLOR_GOLD = (255, 205, 45)
 
 
-# ==============================================================================
-# ASSET MANAGER (Images, Sounds, Fonts, 9-Slice UI)
-# ==============================================================================
 class AssetManager:
     def __init__(self):
         self.sprites: dict[str, pygame.Surface] = {}
@@ -41,7 +35,6 @@ class AssetManager:
         base_dir = os.path.dirname(os.path.abspath(__file__))
         assets_dir = os.path.join(base_dir, "assets")
 
-        # 1. Fonts
         font_dir = os.path.join(assets_dir, "font")
         reg_font = os.path.join(font_dir, "BadComic-Regular.otf")
         ita_font = os.path.join(font_dir, "BadComic-Italic.otf")
@@ -50,7 +43,6 @@ class AssetManager:
         if os.path.exists(ita_font):
             self.font_italic_path = ita_font
 
-        # 2. Images & Audio
         if os.path.exists(assets_dir):
             for root, _, files in os.walk(assets_dir):
                 for filename in files:
@@ -238,9 +230,6 @@ class AssetManager:
 assets = AssetManager()
 
 
-# ==============================================================================
-# SAVE MANAGER
-# ==============================================================================
 class SaveManager:
     def __init__(self, filename: str = "save_data.json"):
         base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -279,9 +268,6 @@ class SaveManager:
 save_manager = SaveManager()
 
 
-# ==============================================================================
-# SCENE SYSTEM
-# ==============================================================================
 class BaseScene:
     def __init__(self):
         self.manager = None
@@ -351,9 +337,6 @@ class SceneManager:
             self.scene_stack[i].draw(canvas)
 
 
-# ==============================================================================
-# MAIN APPLICATION
-# ==============================================================================
 class App:
     def __init__(self):
         pygame.init()
@@ -374,7 +357,6 @@ class App:
         self.canvas = pygame.Surface((INTERNAL_WIDTH, INTERNAL_HEIGHT))
         self.clock = pygame.time.Clock()
 
-        # Load all assets
         assets.initialize()
 
         self.scene_manager = SceneManager(self)
