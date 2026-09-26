@@ -1,7 +1,7 @@
 import json
-import math
 import os
 import sys
+
 import pygame
 
 TITLE = "So Bakso"

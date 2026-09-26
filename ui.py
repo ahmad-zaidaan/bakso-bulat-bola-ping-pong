@@ -1,6 +1,7 @@
-import math
 import sys
+
 import pygame
+
 from main import (
     INTERNAL_HEIGHT,
     INTERNAL_WIDTH,

@@ -1,5 +1,7 @@
 import random
+
 import pygame
+
 from main import (
     COLOR_BLACK,
     COLOR_GOLD,
